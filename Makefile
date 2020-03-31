@@ -1,5 +1,5 @@
 BUILD := build
-OBJECTS := $(BUILD)/main.o
+OBJECTS := $(BUILD)/main.o $(BUILD)/audio.o
 HEADERS := 
 CC := g++
 CV := -std=c++11
