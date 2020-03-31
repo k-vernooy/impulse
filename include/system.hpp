@@ -16,4 +16,4 @@ class System {
         System(int number, coordinate center);
 
         void evolve();
-}
+};

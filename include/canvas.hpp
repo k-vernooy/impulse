@@ -1,4 +1,5 @@
 #include <vector>
+#include "system.hpp"
 
 using std::vector;
 
@@ -9,4 +10,5 @@ class Canvas {
         Canvas();
         void draw();
         void clear();
+        void add_system(System sys);
 };

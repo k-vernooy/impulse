@@ -13,9 +13,14 @@ int main(int argc, char* argv[]) {
         starts visualizer
     */
 
-    if (argc != 1) cout << "Must provide one audio file" << endl;
-    
-    AudioFile<double> file;
-    std::cout << "Loading audio..." << std::endl;
-    Audio_Analyzer audio(file);
+    if (argc != 2) {
+        cout << "Error: Must provide one audio file, in format .wav" << endl;
+        return 1;
+    }
+
+    AudioFile<double> f;
+    f.load(argv[1]);
+    f.printSummary();
+
+    // Audio_Analyzer audio(argv[1]);
 }
