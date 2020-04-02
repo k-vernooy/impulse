@@ -1,3 +1,11 @@
+/*=====================================
+ audio.cpp                modified 3/31
+ k-vernooy
+
+ Implementation of audio class with fft
+ and music analysis code for detection
+=======================================*/
+
 #include <complex>
 #include <iostream>
 #include <cmath>
@@ -24,22 +32,23 @@ unsigned int bitReverse(unsigned int x, int log2n) {
     return n;
 }
 
+
 void fft(complex<double> a[], complex<double> b[], int log2n) {
-    typedef typename std::iterator_traits<complex<double>*>::value_type complex;
+    typedef complex<double> complex;
     const complex J(0, 1);
     int n = 1 << log2n;
 
-    for (unsigned int i=0; i < n; ++i) {
+    for (unsigned int i=0; i < n; i++) {
         b[bitReverse(i, log2n)] = a[i];
     }
 
-    for (int s = 1; s <= log2n; ++s) {
+    for (int s = 1; s <= log2n; s++) {
         int m = 1 << s;
         int m2 = m >> 1;
         complex w(1, 0);
         complex wm = exp(-J * (PI / m2));
-        for (int j=0; j < m2; ++j) {
-            for (int k=j; k < n; k += m) {
+        for (int j = 0; j < m2; j++) {
+            for (int k = j; k < n; k += m) {
                 complex t = w * b[k + m2];
                 complex u = b[k];
                 b[k] = u + t;
@@ -50,28 +59,28 @@ void fft(complex<double> a[], complex<double> b[], int log2n) {
     }
 }
 
-// vector<double> fft(vector<double> a,  vector<double> b, int log2n) {    
-//     const complex J(0, 1);
-//     int n = 1 << log2n;
-//     for (unsigned int i=0; i < n; ++i) {
-//         b[bitReverse(i, log2n)] = a[i];
-//     }
-//     for (int s = 1; s <= log2n; ++s) {
-//         int m = 1 << s;
-//         int m2 = m >> 1;
-//         complex w(1, 0);
-//         complex wm = exp(-J * (PI / m2));
-//         for (int j=0; j < m2; ++j) {
-//         for (int k=j; k < n; k += m) {
-//             complex t = w * b[k + m2];
-//             complex u = b[k];
-//             b[k] = u + t;
-//             b[k + m2] = u - t;
-//         }
-//         w *= wm;
-//         }
-//     }
-// }
+
+void Audio_Analyzer::get_frequencies() {
+    for (int i = 0; i < num_frames; i += FRAMERATE) {
+        for (int channel = 0; channel < audio.getNumChannels(); channel++) {
+            
+            // get the right subset of samples
+            vector<double> cs = this->samples[channel];
+            vector<double> slice = vector<double> (cs.begin() + i, cs.begin() + i + FRAMERATE);
+            vector<complex<double> > ss;
+            for (double s : slice) {
+                ss.push_back(complex<double> (s, 0));
+            }
+
+            typedef complex<double> cx;
+            cx* a = &ss[0];
+            cx b[FRAMERATE];
+            fft(a, b, 3);
+        }
+    }
+
+}
+
 
 Audio_Analyzer::Audio_Analyzer(char* pathname) {
     cout << "loading audio from " << pathname << endl;    
@@ -87,4 +96,8 @@ Audio_Analyzer::Audio_Analyzer(char* pathname) {
             this->samples[x][i] = audio.samples[x][i];
         }
     }
+
+    this->num_frames = audio.getNumSamplesPerChannel() / FRAMERATE;
+    audio.printSummary();
+    this->get_frequencies();
 }
