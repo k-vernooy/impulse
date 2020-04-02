@@ -1,3 +1,13 @@
+/*=====================================
+ audio.hpp                modified 3/31
+ k-vernooy
+
+Definitiom of the Audio_Analyzer class
+that takes in audio file and locates
+impulses
+=======================================*/
+
+
 #include <vector>
 #include <array>
 #include <complex>
@@ -6,26 +16,28 @@
 using std::vector;
 using std::array;
 
+static int FRAMERATE = 64;
 void fft(std::complex<double> a[], std::complex<double> b[], int log2n);
 
+
 class Audio_Analyzer {
+
+    int num_frames;
+
     // store audio information and samples
     AudioFile<double> audio;
     vector<vector<double> > samples;
 
     // collect frequency information at regular intervals
     vector<array<double, 64> > frequencies;
-    // vector<double> fft(vector<double> a, vector<double> b, int log2n);
-    
+    void get_frequencies();
+
     // get amplitude information
     vector<double> amplitudes;
 
     public:
         Audio_Analyzer(char* filepath);
         vector<array<double, 2> > locate_impulses(); // {{amplitude, time}};
-
-    // vector<double> amplitudes();
-    // vector<double> frequencies();
 };
 
 
