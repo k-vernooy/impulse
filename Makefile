@@ -5,12 +5,14 @@ CC := g++
 CV := -std=c++11
 
 all: compile
-compile: setup $(OBJECTS)
-	$(CC) $(CV) $(OBJECTS) -o bin/impulse
+compile: setup $(OBJECTS) fft
+	$(CC) $(CV) $(OBJECTS) $(BUILD)/fft.o -o bin/impulse
 
-# object file targets:
 $(BUILD)/%.o: src/%.cpp $(HEADERS)
 	$(CC) $(CV) $< -c -o $@
+
+fft: lib/fft/fft.cpp
+	$(CC) $(CV) lib/fft/fft.cpp -c -o $(BUILD)/fft.o
 
 setup:
 	mkdir -p build bin

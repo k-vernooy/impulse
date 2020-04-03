@@ -16,22 +16,23 @@ impulses
 using std::vector;
 using std::array;
 
-#define FRAMERATE 2048
+#define FRAMERATE 2048 // samples per frame
+#define FREQUENCIES 64 // frequencies samples per frame
+
 void fft(std::complex<double> a[], std::complex<double> b[], int log2n);
 
 
 class Channel {
 
-    vector<double> samples;
-    
     public:
+        vector<double> samples;
         void get_frequencies();
         void get_amplitudes();
 
         int num_frames;
 
         Channel(vector<double> s) : samples(s) {}
-        vector<array<double, FRAMERATE> > frequencies;
+        vector<array<double, FREQUENCIES> > frequencies;
         vector<double> amplitudes;
 };
 

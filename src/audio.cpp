@@ -13,6 +13,7 @@
 #include <string>
 #include <fstream>
 #include "../include/audio.hpp"
+#include "../lib/fft/fft.hpp"
 
 const double PI = 3.141592653589793238460;
 
@@ -52,44 +53,44 @@ string to_string(vector<double> v) {
     return s;
 }
 
-unsigned int bitReverse(unsigned int x, int log2n) {
-    int n = 0;
-    int mask = 0x1;
-    for (int i=0; i < log2n; i++) {
-        n <<= 1;
-        n |= (x & 1);
-        x >>= 1;
-    }
+// unsigned int bitReverse(unsigned int x, int log2n) {
+//     int n = 0;
+//     int mask = 0x1;
+//     for (int i=0; i < log2n; i++) {
+//         n <<= 1;
+//         n |= (x & 1);
+//         x >>= 1;
+//     }
 
-    return n;
-}
+//     return n;
+// }
 
 
-void fft(complex<double> a[], complex<double> b[], int log2n) {
-    typedef complex<double> complex;
-    const complex J(0, 1);
-    int n = 1 << log2n;
+// void fft(complex<double> a[], complex<double> b[], int log2n) {
+//     typedef complex<double> complex;
+//     const complex J(0, 1);
+//     int n = 1 << log2n;
 
-    for (unsigned int i=0; i < n; i++) {
-        b[bitReverse(i, log2n)] = a[i];
-    }
+//     for (unsigned int i=0; i < n; i++) {
+//         b[bitReverse(i, log2n)] = a[i];
+//     }
 
-    for (int s = 1; s <= log2n; s++) {
-        int m = 1 << s;
-        int m2 = m >> 1;
-        complex w(1, 0);
-        complex wm = exp(-J * (PI / m2));
-        for (int j = 0; j < m2; j++) {
-            for (int k = j; k < n; k += m) {
-                complex t = w * b[k + m2];
-                complex u = b[k];
-                b[k] = u + t;
-                b[k + m2] = u - t;
-            }
-            w *= wm;
-        }
-    }
-}
+//     for (int s = 1; s <= log2n; s++) {
+//         int m = 1 << s;
+//         int m2 = m >> 1;
+//         complex w(1, 0);
+//         complex wm = exp(-J * (PI / m2));
+//         for (int j = 0; j < m2; j++) {
+//             for (int k = j; k < n; k += m) {
+//                 complex t = w * b[k + m2];
+//                 complex u = b[k];
+//                 b[k] = u + t;
+//                 b[k + m2] = u - t;
+//             }
+//             w *= wm;
+//         }
+//     }
+// }
 
 
 void Channel::get_amplitudes() {
@@ -106,7 +107,6 @@ void Channel::get_amplitudes() {
 void Channel::get_frequencies() {
     for (int i = 0; i < samples.size(); i += FRAMERATE) {
         // get the right subset of samples
-        array<double, FRAMERATE> ar;
         vector<double> cs = this->samples;
         vector<double> slice;
         
@@ -121,17 +121,16 @@ void Channel::get_frequencies() {
         }
 
         vector<complex<double> > ss;
-        for (double s : slice) {
-            ss.push_back(complex<double> (s, 0));
+        for (double s : slice) ss.push_back(complex<double> (s, 0));
+
+        Fft::transform(ss);
+        array<double, FREQUENCIES> freq;
+
+        for (int i = 0; i < FRAMERATE; i++) {
+            freq[floor((double)i / ((double)FRAMERATE / (double)FREQUENCIES))] += abs(ss[i]);
         }
 
-        typedef complex<double> cx;
-        cx* a = &ss[0];
-        cx b[FRAMERATE];
-        fft(a, b, 3);
-
-        for (int i = 0; i < FRAMERATE; i++) ar[i] = abs(b[i]);
-        this->frequencies.push_back(ar);
+        this->frequencies.push_back(freq);
     }
 
 }
@@ -160,8 +159,5 @@ Audio_Analyzer::Audio_Analyzer(char* pathname) {
 
     this->num_frames = audio.getNumSamplesPerChannel() / FRAMERATE;
     cout << this->num_frames << endl;
-
-    cout << this->channels[0].amplitudes.size() << endl;
-    writef(to_string(this->channels[0].amplitudes), "test.dat");
     return;
 }
