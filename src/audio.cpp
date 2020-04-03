@@ -10,6 +10,8 @@
 #include <iostream>
 #include <cmath>
 #include <iterator>
+#include <string>
+#include <fstream>
 #include "../include/audio.hpp"
 
 const double PI = 3.141592653589793238460;
@@ -18,7 +20,37 @@ const double PI = 3.141592653589793238460;
 using std::cout;
 using std::endl;
 using std::complex;
+using std::string;
+using std::ofstream;
 
+
+void writef(string contents, string path) {
+    /*
+        Write a string to a file. This method appends
+        to the file rather than overwriting contents just in case.
+    */
+
+    ofstream of(path);
+    of << contents;
+    of.close();
+}
+
+
+string to_string(array<double, FRAMERATE> v) {
+    string s;
+    for (double t : v) s += std::to_string(t) + ", ";
+
+    s = s.substr(0, s.size() - 2);
+    return s;
+}
+
+string to_string(vector<double> v) {
+    string s;
+    for (double t : v) s += std::to_string(t) + ", ";
+
+    s = s.substr(0, s.size() - 2);
+    return s;
+}
 
 unsigned int bitReverse(unsigned int x, int log2n) {
     int n = 0;
@@ -60,23 +92,46 @@ void fft(complex<double> a[], complex<double> b[], int log2n) {
 }
 
 
-void Audio_Analyzer::get_frequencies() {
-    for (int i = 0; i < num_frames; i += FRAMERATE) {
-        for (int channel = 0; channel < audio.getNumChannels(); channel++) {
-            
-            // get the right subset of samples
-            vector<double> cs = this->samples[channel];
-            vector<double> slice = vector<double> (cs.begin() + i, cs.begin() + i + FRAMERATE);
-            vector<complex<double> > ss;
-            for (double s : slice) {
-                ss.push_back(complex<double> (s, 0));
-            }
+void Channel::get_amplitudes() {
+    for (int i = 0; i < samples.size(); i += FRAMERATE) {
+        double total = 0;
+        for (int val = i; val <= i + FRAMERATE; val++)
+            total += abs(this->samples[i]);
+        total /= FRAMERATE;
+        amplitudes.push_back(total);
+    }
+}
 
-            typedef complex<double> cx;
-            cx* a = &ss[0];
-            cx b[FRAMERATE];
-            fft(a, b, 3);
+
+void Channel::get_frequencies() {
+    for (int i = 0; i < samples.size(); i += FRAMERATE) {
+        // get the right subset of samples
+        array<double, FRAMERATE> ar;
+        vector<double> cs = this->samples;
+        vector<double> slice;
+        
+        if (*cs.begin() + i + FRAMERATE > cs.size()) {
+            slice = vector<double>(cs.begin() + i, cs.end());
+            for (int i = 0; i < FRAMERATE - slice.size(); i++) {
+                slice.push_back(0.0);
+            }
         }
+        else {
+            slice = vector<double> (cs.begin() + i, cs.begin() + i + FRAMERATE);
+        }
+
+        vector<complex<double> > ss;
+        for (double s : slice) {
+            ss.push_back(complex<double> (s, 0));
+        }
+
+        typedef complex<double> cx;
+        cx* a = &ss[0];
+        cx b[FRAMERATE];
+        fft(a, b, 3);
+
+        for (int i = 0; i < FRAMERATE; i++) ar[i] = abs(b[i]);
+        this->frequencies.push_back(ar);
     }
 
 }
@@ -86,18 +141,27 @@ Audio_Analyzer::Audio_Analyzer(char* pathname) {
     cout << "loading audio from " << pathname << endl;    
     audio.load(pathname);
 
-    this->samples = vector<vector<double> > (
-            audio.getNumChannels(), 
-            vector<double> (audio.getNumSamplesPerChannel(), 0)
-        );
-    
     for (int x = 0; x < audio.getNumChannels(); x++) {
+        vector<double> s;
         for (int i = 0; i < audio.getNumSamplesPerChannel(); i++) {
-            this->samples[x][i] = audio.samples[x][i];
+            s.push_back(audio.samples[x][i]);
         }
+
+        Channel c(s);
+        channels.push_back(c);
+    }
+
+
+    for (int i = 0; i < channels.size(); i++) {
+        channels[i].get_frequencies();
+        channels[i].get_amplitudes();
+        channels[i].num_frames = audio.getNumSamplesPerChannel() / FRAMERATE;
     }
 
     this->num_frames = audio.getNumSamplesPerChannel() / FRAMERATE;
-    audio.printSummary();
-    this->get_frequencies();
+    cout << this->num_frames << endl;
+
+    cout << this->channels[0].amplitudes.size() << endl;
+    writef(to_string(this->channels[0].amplitudes), "test.dat");
+    return;
 }

@@ -24,9 +24,5 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // parse audio file
     Audio_Analyzer audio(argv[1]);
-
-    // initialize canvas
-
 }
