@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
         audio.render(canvas, i);
         canvas.draw();
         wrefresh(stdscr);
-        usleep(14000);
+        usleep(20000);
         canvas.clear();
     }
 

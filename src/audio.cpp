@@ -112,6 +112,8 @@ void Channel::get_frequencies() {
 
         Fft::transform(ss);
         array<double, FREQUENCIES> freq;
+        freq.fill(0);
+        // for (int i = 0; i < FREQUENCIES; i++) freq[i] = 0;
 
         for (int i = 0; i < FRAMERATE / 2 - 1; i++) {
             freq[floor((double)i / ((double)FRAMERATE / (double)FREQUENCIES))] += abs(ss[i]);
@@ -154,8 +156,14 @@ void Audio_Analyzer::render(Canvas& canvas, int frame) {
     array<int, 2> dim = canvas.get_terminal_dimensions();
     canvas.screen = vector<vector<int> > (dim[0], vector<int>(dim[1]));
 
+    string str = "";
+    for (double x : this->channels[0].frequencies[frame]) str += std::to_string(x) + ", ";
+    str = str.substr(0, str.size() - 2) + "\n";
+    writef(str, "test.csv");
+
     for (int j = 0; j < this->channels[0].frequencies[frame].size(); j++) {
-        int x = round(this->channels[0].frequencies[frame][j] / 60.0);
+        
+        int x = round(this->channels[0].frequencies[frame][j] * 3.0);
         if (x < 0) x = 0;
         x *= (double) dim[0] / 100.0;
 
