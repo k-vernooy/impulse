@@ -4,10 +4,13 @@
 using std::vector;
 
 class Canvas {
-    vector<vector<int> > screen;
 
     public:
         Canvas();
+        ~Canvas();
+        
+        vector<vector<int> > screen;
+        array<int, 2> get_terminal_dimensions();
         void draw();
         void clear();
         void add_system(System sys);

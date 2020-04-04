@@ -12,6 +12,10 @@
 #include <iterator>
 #include <string>
 #include <fstream>
+#include <unistd.h>
+#include <ncurses.h>
+#include <sys/ioctl.h>
+
 #include "../include/audio.hpp"
 #include "../lib/fft/fft.hpp"
 
@@ -34,23 +38,6 @@ void writef(string contents, string path) {
     ofstream of(path);
     of << contents;
     of.close();
-}
-
-
-string to_string(array<double, FRAMERATE> v) {
-    string s;
-    for (double t : v) s += std::to_string(t) + ", ";
-
-    s = s.substr(0, s.size() - 2);
-    return s;
-}
-
-string to_string(vector<double> v) {
-    string s;
-    for (double t : v) s += std::to_string(t) + ", ";
-
-    s = s.substr(0, s.size() - 2);
-    return s;
 }
 
 // unsigned int bitReverse(unsigned int x, int log2n) {
@@ -126,7 +113,7 @@ void Channel::get_frequencies() {
         Fft::transform(ss);
         array<double, FREQUENCIES> freq;
 
-        for (int i = 0; i < FRAMERATE; i++) {
+        for (int i = 0; i < FRAMERATE / 2 - 1; i++) {
             freq[floor((double)i / ((double)FRAMERATE / (double)FREQUENCIES))] += abs(ss[i]);
         }
 
@@ -139,7 +126,7 @@ void Channel::get_frequencies() {
 Audio_Analyzer::Audio_Analyzer(char* pathname) {
     cout << "loading audio from " << pathname << endl;    
     audio.load(pathname);
-
+    
     for (int x = 0; x < audio.getNumChannels(); x++) {
         vector<double> s;
         for (int i = 0; i < audio.getNumSamplesPerChannel(); i++) {
@@ -159,6 +146,25 @@ Audio_Analyzer::Audio_Analyzer(char* pathname) {
     }
 
     this->num_frames = audio.getNumSamplesPerChannel() / FRAMERATE;
-    cout << this->num_frames << endl;
+    return;
+}
+
+void Audio_Analyzer::render(Canvas& canvas, int frame) {
+
+    array<int, 2> dim = canvas.get_terminal_dimensions();
+    canvas.screen = vector<vector<int> > (dim[0], vector<int>(dim[1]));
+
+    for (int j = 0; j < this->channels[0].frequencies[frame].size(); j++) {
+        int x = round(this->channels[0].frequencies[frame][j] / 60.0);
+        if (x < 0) x = 0;
+        x *= (double) dim[0] / 100.0;
+
+        for (int i = 0; i < x; i ++) {
+            int m = dim[0] - i - 1;
+            if (m < 0) m = 0;
+            canvas.screen[m][j] = 1;
+        }
+    }
+
     return;
 }
