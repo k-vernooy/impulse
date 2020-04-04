@@ -25,4 +25,5 @@ int main(int argc, char* argv[]) {
     }
 
     Audio_Analyzer audio(argv[1]);
+    return 0;
 }

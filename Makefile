@@ -3,6 +3,7 @@ OBJECTS := $(BUILD)/main.o $(BUILD)/audio.o
 HEADERS := 
 CC := g++
 CV := -std=c++11
+SILENT := "false"
 
 all: compile
 compile: setup $(OBJECTS) fft

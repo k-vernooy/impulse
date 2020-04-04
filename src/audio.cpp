@@ -150,6 +150,7 @@ Audio_Analyzer::Audio_Analyzer(char* pathname) {
         channels.push_back(c);
     }
 
+    cout << "extracting frequency and amplitude information..." << endl;
 
     for (int i = 0; i < channels.size(); i++) {
         channels[i].get_frequencies();
