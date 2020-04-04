@@ -10,6 +10,9 @@
 #include <iostream>
 #include <iomanip>
 #include <complex>
+#include <unistd.h>
+#include <ncurses.h>
+
 #include "../include/audio.hpp"
 
 using std::complex;
@@ -25,5 +28,22 @@ int main(int argc, char* argv[]) {
     }
 
     Audio_Analyzer audio(argv[1]);
+    Canvas canvas = Canvas();
+    
+    for (int i = 0; i < audio.num_frames; i++) {
+        audio.render(canvas, i);
+        canvas.draw();
+        wrefresh(stdscr);
+        usleep(14000);
+        canvas.clear();
+    }
+
+    // for (int i = 1; i < audio.num_frames - 1; i++) {
+    //     audio.render(canvas, i);
+    //     int ch = getch();
+    //     mvprintw(0,0,std::to_string(ch).c_str());
+    //     // canvas.clear();
+    // }
+
     return 0;
 }
