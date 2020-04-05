@@ -29,10 +29,54 @@ using std::string;
 using std::ofstream;
 
 
+Audio_Analyzer::Audio_Analyzer(char* pathname) {
+    /*
+        @desc: reads audio file from path and saves data
+        @params: `char*` pathname: file to read
+        @return: `constructor`
+    */
+
+    cout << "loading audio from " << pathname << endl;    
+    audio.load(pathname);
+    
+    // get samples from audio
+    for (int x = 0; x < audio.getNumChannels(); x++) {
+        vector<double> s;
+        for (int i = 0; i < audio.getNumSamplesPerChannel(); i++) {
+            s.push_back(audio.samples[x][i]);
+        }
+
+        // create channel from samples
+        Channel c(s);
+        channels.push_back(c);
+    }
+
+    cout << "extracting frequency and amplitude information..." << endl;
+
+    for (int i = 0; i < channels.size(); i++) {
+        channels[i].get_frequencies();
+        channels[i].get_amplitudes();
+        channels[i].num_frames = audio.getNumSamplesPerChannel() / FRAMERATE;
+    }
+
+    // the amount of time needed to play each frame
+    this->time_per_frame = (1.0 / (double) audio.getSampleRate()) * (double) FRAMERATE;
+    this->num_frames = audio.getNumSamplesPerChannel() / FRAMERATE;
+    return;
+}
+
+
 void writef(string contents, string path) {
     /*
-        Write a string to a file. This method appends
-        to the file rather than overwriting contents just in case.
+        @desc:
+            Write a string to a file. This method appends
+            to the file rather than overwriting contents just in case.
+
+        @param:
+            `string` contents: string to write to file
+            `string` path: path to write to
+
+        @return: `void`
     */
 
     ofstream of(path);
@@ -40,47 +84,14 @@ void writef(string contents, string path) {
     of.close();
 }
 
-// unsigned int bitReverse(unsigned int x, int log2n) {
-//     int n = 0;
-//     int mask = 0x1;
-//     for (int i=0; i < log2n; i++) {
-//         n <<= 1;
-//         n |= (x & 1);
-//         x >>= 1;
-//     }
-
-//     return n;
-// }
-
-
-// void fft(complex<double> a[], complex<double> b[], int log2n) {
-//     typedef complex<double> complex;
-//     const complex J(0, 1);
-//     int n = 1 << log2n;
-
-//     for (unsigned int i=0; i < n; i++) {
-//         b[bitReverse(i, log2n)] = a[i];
-//     }
-
-//     for (int s = 1; s <= log2n; s++) {
-//         int m = 1 << s;
-//         int m2 = m >> 1;
-//         complex w(1, 0);
-//         complex wm = exp(-J * (PI / m2));
-//         for (int j = 0; j < m2; j++) {
-//             for (int k = j; k < n; k += m) {
-//                 complex t = w * b[k + m2];
-//                 complex u = b[k];
-//                 b[k] = u + t;
-//                 b[k + m2] = u - t;
-//             }
-//             w *= wm;
-//         }
-//     }
-// }
-
 
 void Channel::get_amplitudes() {
+    /*
+        @desc: Sums samples at a rate to determine amplitudes
+        @params: none
+        @return: `void`
+    */
+
     for (int i = 0; i < samples.size(); i += FRAMERATE) {
         double total = 0;
         for (int val = i; val <= i + FRAMERATE; val++)
@@ -92,6 +103,16 @@ void Channel::get_amplitudes() {
 
 
 void Channel::get_frequencies() {
+    /*
+        @desc:
+            uses a Fast Fourier Transform to determine power
+            of frequencies for each frame and saves to a list
+        
+        @params: none
+        @return: `void`
+    */
+
+
     for (int i = 0; i < samples.size(); i += FRAMERATE) {
         // get the right subset of samples
         vector<double> cs = this->samples;
@@ -113,7 +134,6 @@ void Channel::get_frequencies() {
         Fft::transform(ss);
         array<double, FREQUENCIES> freq;
         freq.fill(0);
-        // for (int i = 0; i < FREQUENCIES; i++) freq[i] = 0;
 
         for (int i = 0; i < FRAMERATE / 2 - 1; i++) {
             freq[floor((double)i / ((double)FRAMERATE / (double)FREQUENCIES))] += abs(ss[i]);
@@ -125,32 +145,6 @@ void Channel::get_frequencies() {
 }
 
 
-Audio_Analyzer::Audio_Analyzer(char* pathname) {
-    cout << "loading audio from " << pathname << endl;    
-    audio.load(pathname);
-    
-    for (int x = 0; x < audio.getNumChannels(); x++) {
-        vector<double> s;
-        for (int i = 0; i < audio.getNumSamplesPerChannel(); i++) {
-            s.push_back(audio.samples[x][i]);
-        }
-
-        Channel c(s);
-        channels.push_back(c);
-    }
-
-    cout << "extracting frequency and amplitude information..." << endl;
-
-    for (int i = 0; i < channels.size(); i++) {
-        channels[i].get_frequencies();
-        channels[i].get_amplitudes();
-        channels[i].num_frames = audio.getNumSamplesPerChannel() / FRAMERATE;
-    }
-
-    this->num_frames = audio.getNumSamplesPerChannel() / FRAMERATE;
-    return;
-}
-
 void Audio_Analyzer::render(Canvas& canvas, int frame) {
 
     array<int, 2> dim = canvas.get_terminal_dimensions();
@@ -159,7 +153,6 @@ void Audio_Analyzer::render(Canvas& canvas, int frame) {
     string str = "";
     for (double x : this->channels[0].frequencies[frame]) str += std::to_string(x) + ", ";
     str = str.substr(0, str.size() - 2) + "\n";
-    writef(str, "test.csv");
 
     for (int j = 0; j < this->channels[0].frequencies[frame].size(); j++) {
         
@@ -175,4 +168,49 @@ void Audio_Analyzer::render(Canvas& canvas, int frame) {
     }
 
     return;
+}
+
+
+void Channel::locate_impulses() {
+    vector<array<double, 2> > imp;
+
+    for (int i = 0; i < this->amplitudes.size(); i++) {
+        if (i + IMPULSE_TIME < this->amplitudes.size()) {
+            double amp = 0, freq = 0;
+            vector<double> ampslice;
+            vector<array<double, FREQUENCIES> > freqslice;
+
+            ampslice = vector<double> (this->amplitudes.begin() + i, this->amplitudes.begin() + i + IMPULSE_TIME);
+            freqslice = vector<array<double, FREQUENCIES> > (this->frequencies.begin() + i, this->frequencies.begin() + i + IMPULSE_TIME);
+
+            vector<double> ampav(2, 0);
+
+            for (int x = 0; x < IMPULSE_TIME; x++) {
+                if (x < IMPULSE_TIME / 2) {
+                    ampav[0] += ampslice[x];
+                }
+                else {
+                    ampav[1] += ampslice[x];
+                }
+            }
+            
+            if (ampav[1] > 2 * ampav[0]) {
+                amp = ampav[1] / ampav[0];
+
+                // determine frequency that increases the most
+                auto it = std::max_element(freqslice[IMPULSE_TIME - 1].begin(), freqslice[IMPULSE_TIME - 1].end());
+                int dist = std::distance(freqslice[IMPULSE_TIME - 1].begin(), it);
+                freq = dist;
+            }
+
+            this->impulses.push_back({amp, freq});
+        }
+    }
+}
+
+
+void Audio_Analyzer::locate_impulses() {
+    for (int i = 0; i < channels.size(); i++) {
+        channels[i].locate_impulses();
+    }
 }
