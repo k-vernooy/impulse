@@ -4,16 +4,18 @@
 using std::vector;
 using std::array;
 
-typedef array<int, 2> coordinate;
 
 class System {
-    vector<coordinate> cells;
+    vector<vector<int> > cells;
 
     public:
+        int get_neighboors(int x, int y);
+        
         // constructor provided cells
-        System(vector<coordinate> c) : cells(c) {}
+        System(int x, int y, vector<vector<int> > c);
+
         // generate random cells near a center
-        System(int number, coordinate center);
+        System(int x, int y, int number, int centerx, int centery);
 
         void evolve();
 };
