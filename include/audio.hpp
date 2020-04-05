@@ -18,11 +18,10 @@ impulses
 using std::vector;
 using std::array;
 
-#define FRAMERATE 1024   // samples per frame
-#define FREQUENCIES 512 // frequencies samples per frame
+#define FRAMERATE 8192   // samples per frame
+#define FREQUENCIES 256 // frequencies samples per frame
 
-void fft(std::complex<double> a[], std::complex<double> b[], int log2n);
-
+#define IMPULSE_TIME 8 // # of frames to search for impulses in
 
 class Channel {
 
@@ -36,6 +35,10 @@ class Channel {
         Channel(vector<double> s) : samples(s) {}
         vector<array<double, FREQUENCIES> > frequencies;
         vector<double> amplitudes;
+
+        void locate_impulses();
+        // correspond to frames, with {amplitude, frequency} of impulse
+        vector<array<double, 2>> impulses;
 };
 
 
@@ -44,11 +47,13 @@ class Audio_Analyzer {
     public:
         vector<Channel> channels;
         int num_frames;
-
+        double time_per_frame;
+        
         // store audio information and samples
         AudioFile<double> audio;
 
         void render(Canvas& canvas, int frame);
         Audio_Analyzer(char* filepath);
-        vector<array<double, 2> > locate_impulses(); // {{amplitude, time}};
+
+        void locate_impulses(); // {{amplitude, time}};
 };

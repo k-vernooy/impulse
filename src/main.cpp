@@ -12,12 +12,16 @@
 #include <complex>
 #include <unistd.h>
 #include <ncurses.h>
+#include <thread> 
+#include <chrono>
 
 #include "../include/audio.hpp"
 
 using std::complex;
 using std::cout;
 using std::endl;
+
+using namespace std::chrono;
 
 
 int main(int argc, char* argv[]) {
@@ -28,15 +32,9 @@ int main(int argc, char* argv[]) {
     }
 
     Audio_Analyzer audio(argv[1]);
-    Canvas canvas = Canvas();
-    
-    for (int i = 0; i < audio.num_frames; i++) {
-        audio.render(canvas, i);
-        canvas.draw();
-        wrefresh(stdscr);
-        usleep(20000);
-        canvas.clear();
-    }
+    // Canvas canvas = Canvas();
+
+    audio.locate_impulses();
 
     // for (int i = 1; i < audio.num_frames - 1; i++) {
     //     audio.render(canvas, i);
