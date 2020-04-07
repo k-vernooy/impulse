@@ -24,6 +24,31 @@ using std::endl;
 using namespace std::chrono;
 
 
+void detect_imp(Audio_Analyzer audio) {
+    int tpf = audio.time_per_frame * 1000000;
+    int total_lag = 0;
+
+    for (int i = 0; i < audio.num_frames; i++) {
+        auto start = high_resolution_clock::now();
+        array<double, 2> ar = audio.channels[0].get_impulse(i);
+        auto stop = high_resolution_clock::now();
+        auto duration = stop - start;
+        // cout << tpf << ", " << duration.count() << endl;
+        total_lag += tpf - (duration.count() * 0.001);
+        if (total_lag > 0) {
+            usleep(total_lag);
+            total_lag = 0;
+        }
+        // cout << total_lag << endl;
+    }
+}
+
+
+void playsound(char* audio) {
+    system((std::string("/Users/svernooy/Downloads/mpv-0.31.0/mpv.app/Contents/MacOS/mpv ") + std::string(audio) + " &> /dev/null").c_str());
+}
+
+
 int main(int argc, char* argv[]) {
 
     if (argc != 2) {
@@ -33,14 +58,14 @@ int main(int argc, char* argv[]) {
 
     Audio_Analyzer audio(argv[1]);
     // Canvas canvas = Canvas();
+    std::thread th1(detect_imp, audio);
+    std::thread th2(playsound, argv[1]);
 
-    audio.locate_impulses();
 
-    // for (int i = 1; i < audio.num_frames - 1; i++) {
-    //     audio.render(canvas, i);
-    //     int ch = getch();
-    //     mvprintw(0,0,std::to_string(ch).c_str());
-    //     // canvas.clear();
+    th1.join();
+    th2.join();
+    // for (int i = 0; i < audio.num_frames; i++) {
+    //     array<double, 2> ar = audio.channels[0].get_impulse(i);
     // }
 
     return 0;

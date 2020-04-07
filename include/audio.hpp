@@ -18,27 +18,22 @@ impulses
 using std::vector;
 using std::array;
 
-#define FRAMERATE 8192   // samples per frame
+#define FRAMERATE 1024   // samples per frame
 #define FREQUENCIES 256 // frequencies samples per frame
 
-#define IMPULSE_TIME 8 // # of frames to search for impulses in
 
 class Channel {
 
     public:
         vector<double> samples;
-        void get_frequencies();
-        void get_amplitudes();
+
+        array<double,FREQUENCIES> get_frequencies(int frame);
+        double get_amplitude(int frame);
+        array<double, 2> get_impulse(int frame);
 
         int num_frames;
 
         Channel(vector<double> s) : samples(s) {}
-        vector<array<double, FREQUENCIES> > frequencies;
-        vector<double> amplitudes;
-
-        void locate_impulses();
-        // correspond to frames, with {amplitude, frequency} of impulse
-        vector<array<double, 2>> impulses;
 };
 
 
