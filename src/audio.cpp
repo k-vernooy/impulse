@@ -48,15 +48,8 @@ Audio_Analyzer::Audio_Analyzer(char* pathname) {
 
         // create channel from samples
         Channel c(s);
+        c.num_frames = audio.getNumSamplesPerChannel() / FRAMERATE;
         channels.push_back(c);
-    }
-
-    cout << "extracting frequency and amplitude information..." << endl;
-
-    for (int i = 0; i < channels.size(); i++) {
-        channels[i].get_frequencies();
-        channels[i].get_amplitudes();
-        channels[i].num_frames = audio.getNumSamplesPerChannel() / FRAMERATE;
     }
 
     // the amount of time needed to play each frame
@@ -85,24 +78,24 @@ void writef(string contents, string path) {
 }
 
 
-void Channel::get_amplitudes() {
+double Channel::get_amplitude(int frame) {
     /*
         @desc: Sums samples at a rate to determine amplitudes
         @params: none
         @return: `void`
     */
 
-    for (int i = 0; i < samples.size(); i += FRAMERATE) {
-        double total = 0;
-        for (int val = i; val <= i + FRAMERATE; val++)
-            total += abs(this->samples[i]);
-        total /= FRAMERATE;
-        amplitudes.push_back(total);
+    double total = 0;
+    for (int i = frame * FRAMERATE; i < FRAMERATE + (frame * FRAMERATE); i++) {
+        total += abs(this->samples[i]);
     }
+    total /= FRAMERATE;
+
+    return total;
 }
 
 
-void Channel::get_frequencies() {
+array<double, FREQUENCIES> Channel::get_frequencies(int frame) {
     /*
         @desc:
             uses a Fast Fourier Transform to determine power
@@ -112,105 +105,60 @@ void Channel::get_frequencies() {
         @return: `void`
     */
 
-
-    for (int i = 0; i < samples.size(); i += FRAMERATE) {
-        // get the right subset of samples
-        vector<double> cs = this->samples;
-        vector<double> slice;
-        
-        if (*cs.begin() + i + FRAMERATE > cs.size()) {
-            slice = vector<double>(cs.begin() + i, cs.end());
-            for (int i = 0; i < FRAMERATE - slice.size(); i++) {
-                slice.push_back(0.0);
-            }
+    int i = frame;//, i < frame + FRAMERATE;
+    // get the right subset of samples
+    vector<double> cs = this->samples;
+    vector<double> slice;
+    
+    if (*cs.begin() + i + FRAMERATE > cs.size()) {
+        slice = vector<double>(cs.begin() + i, cs.end());
+        for (int i = 0; i < FRAMERATE - slice.size(); i++) {
+            slice.push_back(0.0);
         }
-        else {
-            slice = vector<double> (cs.begin() + i, cs.begin() + i + FRAMERATE);
-        }
-
-        vector<complex<double> > ss;
-        for (double s : slice) ss.push_back(complex<double> (s, 0));
-
-        Fft::transform(ss);
-        array<double, FREQUENCIES> freq;
-        freq.fill(0);
-
-        for (int i = 0; i < FRAMERATE / 2 - 1; i++) {
-            freq[floor((double)i / ((double)FRAMERATE / (double)FREQUENCIES))] += abs(ss[i]);
-        }
-
-        this->frequencies.push_back(freq);
+    }
+    else {
+        slice = vector<double> (cs.begin() + i, cs.begin() + i + FRAMERATE);
     }
 
+    vector<complex<double> > ss;
+    for (double s : slice) ss.push_back(complex<double> (s, 0));
+
+    Fft::transform(ss);
+    array<double, FREQUENCIES> freq;
+    freq.fill(0);
+
+    for (int i = 0; i < FRAMERATE / 2 - 1; i++) {
+        freq[floor((double)i / ((double)FRAMERATE / (double)FREQUENCIES))] += abs(ss[i]);
+    }
+
+    return freq;
 }
 
 
 void Audio_Analyzer::render(Canvas& canvas, int frame) {
-
-    array<int, 2> dim = canvas.get_terminal_dimensions();
-    canvas.screen = vector<vector<int> > (dim[0], vector<int>(dim[1]));
-
-    string str = "";
-    for (double x : this->channels[0].frequencies[frame]) str += std::to_string(x) + ", ";
-    str = str.substr(0, str.size() - 2) + "\n";
-
-    for (int j = 0; j < this->channels[0].frequencies[frame].size(); j++) {
-        
-        int x = round(this->channels[0].frequencies[frame][j] * 3.0);
-        if (x < 0) x = 0;
-        x *= (double) dim[0] / 100.0;
-
-        for (int i = 0; i < x; i ++) {
-            int m = dim[0] - i - 1;
-            if (m < 0) m = 0;
-            canvas.screen[m][j] = 1;
-        }
-    }
-
     return;
 }
 
 
-void Channel::locate_impulses() {
-    vector<array<double, 2> > imp;
+array<double, 2> Channel::get_impulse(int frame) {
+    if (frame + 1 >= this->num_frames) return array<double, 2> {-1,-1};
 
-    for (int i = 0; i < this->amplitudes.size(); i++) {
-        if (i + IMPULSE_TIME < this->amplitudes.size()) {
-            double amp = 0, freq = 0;
-            vector<double> ampslice;
-            vector<array<double, FREQUENCIES> > freqslice;
+    double amp, freq;
 
-            ampslice = vector<double> (this->amplitudes.begin() + i, this->amplitudes.begin() + i + IMPULSE_TIME);
-            freqslice = vector<array<double, FREQUENCIES> > (this->frequencies.begin() + i, this->frequencies.begin() + i + IMPULSE_TIME);
+    double ampa = this->get_amplitude(frame), ampb = get_amplitude(frame + 1);
+    array<double, FREQUENCIES> freqa = this->get_frequencies(frame),
+        freqb = this->get_frequencies(frame + 1);
 
-            vector<double> ampav(2, 0);
+    
+    if (ampb > 1.6 * ampa) {
+        amp = ampb / ampa;
 
-            for (int x = 0; x < IMPULSE_TIME; x++) {
-                if (x < IMPULSE_TIME / 2) {
-                    ampav[0] += ampslice[x];
-                }
-                else {
-                    ampav[1] += ampslice[x];
-                }
-            }
-            
-            if (ampav[1] > 2 * ampav[0]) {
-                amp = ampav[1] / ampav[0];
-
-                // determine frequency that increases the most
-                auto it = std::max_element(freqslice[IMPULSE_TIME - 1].begin(), freqslice[IMPULSE_TIME - 1].end());
-                int dist = std::distance(freqslice[IMPULSE_TIME - 1].begin(), it);
-                freq = dist;
-            }
-
-            this->impulses.push_back({amp, freq});
-        }
+        // determine frequency that increases the most
+        auto it = std::max_element(freqb.begin(), freqb.end());
+        int dist = std::distance(freqb.begin(), it);
+        freq = dist;
+        cout << "impulse" << endl;
     }
-}
 
-
-void Audio_Analyzer::locate_impulses() {
-    for (int i = 0; i < channels.size(); i++) {
-        channels[i].locate_impulses();
-    }
+    return (array<double, 2> {amp, freq});
 }
