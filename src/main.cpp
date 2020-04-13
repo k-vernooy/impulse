@@ -33,18 +33,25 @@ void detect_imp(Audio_Analyzer audio) {
         array<double, 2> ar = audio.channels[0].get_impulse(i);
         auto stop = high_resolution_clock::now();
         auto duration = stop - start;
-        // cout << tpf << ", " << duration.count() << endl;
         total_lag += tpf - (duration.count() * 0.001);
+
         if (total_lag > 0) {
             usleep(total_lag);
             total_lag = 0;
         }
-        // cout << total_lag << endl;
+        else {
+            while (total_lag < 0) {
+                i++;
+                total_lag += tpf;
+            }
+        }
+
     }
 }
 
 
 void playsound(char* audio) {
+    usleep(700000);
     system((std::string("/Users/svernooy/Downloads/mpv-0.31.0/mpv.app/Contents/MacOS/mpv ") + std::string(audio) + " &> /dev/null").c_str());
 }
 
@@ -58,9 +65,9 @@ int main(int argc, char* argv[]) {
 
     Audio_Analyzer audio(argv[1]);
     // Canvas canvas = Canvas();
-    std::thread th1(detect_imp, audio);
-    std::thread th2(playsound, argv[1]);
 
+    std::thread th2(playsound, argv[1]);
+    std::thread th1(detect_imp, audio);
 
     th1.join();
     th2.join();

@@ -150,7 +150,7 @@ array<double, 2> Channel::get_impulse(int frame) {
         freqb = this->get_frequencies(frame + 1);
 
     
-    if (ampb > 1.6 * ampa) {
+    if (ampb > 1.4 * ampa) {
         amp = ampb / ampa;
 
         // determine frequency that increases the most
